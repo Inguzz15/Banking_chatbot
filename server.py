@@ -1,49 +1,41 @@
-from flask import Flask
-from flask import render_template, request, jsonify
-from chatterbot import ChatBot
-from chatterbot.trainers import ChatterBotCorpusTrainer
-import os
-
-from chatterbot import ChatBot
-from chatterbot.trainers import ListTrainer
-
-filenumber=int(os.listdir('saved_conversations')[-1])
-filenumber=filenumber+1
-file= open('saved_conversations/'+str(filenumber),"w+")
-file.write('bot : Hi There! I am a banking chatbot. You can begin conversation by typing in a message and pressing enter.\n')
-file.close()
-
-app = Flask(__name__)
+from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
+from chatbot import get_response,get_response2
 
 
-english_bot = ChatBot('Bot',
-             storage_adapter='chatterbot.storage.SQLStorageAdapter',
-             logic_adapters=[
-   {
-       'import_path': 'chatterbot.logic.BestMatch'
-   },
-   
-],
-trainer='chatterbot.trainers.ListTrainer')
-english_bot.set_trainer(ListTrainer)
+class ChatServer(WebSocket):
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+    def handleMessage(self):
 
-@app.route("/get")
-def get_bot_response():
-    userText = request.args.get('msg')
-    response = str(english_bot.get_response(userText))
+        # echo message back to client
+        message = self.data
+        #message1=self.data
 
-    appendfile=os.listdir('saved_conversations')[-1]
-    appendfile= open('saved_conversations/'+str(filenumber),"a")
-    appendfile.write('user : '+userText+'\n')
-    appendfile.write('bot : '+response+'\n')
-    appendfile.close()
-
-    return response
+        response = get_response(message)
+        a = get_response2(message)
+        self.sendMessage(response)
+        self.sendMessage(a)
 
 
-if __name__ == "__main__":
-    app.run()
+        #self.sendMessage(a)
+
+
+    def handleConnected(self):
+        print(self.address, 'connected')
+
+    def handleClose(self):
+        print(self.address, 'closed')
+
+import socket 
+bindsocket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+bindsocket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+addr = [addr for addr in socket.getaddrinfo(self.TCP_IP, self.TCP_Port,
+                                            socket.AF_INET6, socket.IPPROTO_TCP)]
+
+try:
+    bindsocket.bind((addr[0][-1]))
+except socket.error as e:
+    print(e)
+bindsocket.listen(5)
+
+server = SimpleWebSocketServer('', 8000, ChatServer)
+server.serveforever()
